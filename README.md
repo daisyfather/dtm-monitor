@@ -31,30 +31,33 @@ Trạng thái một tiêu chí: `OK` / `WARN` / `FAIL` / `INFO` / `ERROR`.
 `ERROR` là lỗi của chính câu kiểm tra (thiếu quyền, lỗi SQL), **không phải** dữ liệu có vấn đề.
 Một tiêu chí lỗi không làm dừng các tiêu chí khác; lần chạy đó ghi `PARTIAL`.
 
+## Phiên bản
+
+| Phiên bản | Trạng thái | Vị trí |
+|---|---|---|
+| **v1.2** | **Đang chạy** trên production (job scheduler 09:00 / 12:30 / 17:30) | [`legacy/v1/`](legacy/v1/README.md) — nguyên trạng, ngữ cảnh, bài học, giới hạn |
+| v2 | Đang xây dựng theo [`docs/metrics-catalog.md`](docs/metrics-catalog.md) | thư mục gốc (`db/`, `oas/`) |
+
+Đọc trước: [`legacy/v1/README.md`](legacy/v1/README.md) để hiểu bản đang chạy, và
+[`docs/decisions.md`](docs/decisions.md) để hiểu vì sao hệ thống được dựng như vậy.
+
 ## Cấu trúc repo
 
 ```
-db/migrations/   Script DDL / seed theo thứ tự đã deploy (V001, V002, ...)
-db/packages/     PL/SQL package
-oas/analyses/    SQL của từng analysis OAS (Direct Database Request) + ghi chú định dạng view
-oas/prompts/     Cấu hình dashboard prompt
-oas/portal/      Trang HTML menu trái để mở nhanh các trang dashboard
-oas/legacy/      Bản dataset cũ, chỉ để tham khảo
-tools/           unistr_conv.py, check_ascii.py
-docs/            Danh mục metric, quyết định thiết kế
+legacy/v1/              Bản đang chạy: db (migrations, package, job), oas (analyses, prompts, portal)
+db/                     v2 (đang xây)
+oas/                    v2 (đang xây)
+tools/                  unistr_conv.py, check_ascii.py
+docs/metrics-catalog.md Danh mục metric v2, nguyên tắc chọn, lộ trình
+docs/decisions.md       Nhật ký quyết định
 ```
 
-## Deploy
+## Deploy v1 (tham khảo)
 
-Chạy bằng user `BI_DTM` theo đúng thứ tự:
+Chạy bằng user `BI_DTM`: `legacy/v1/db/migrations/V001` → `V005`, rồi `legacy/v1/db/packages/pkg_dtm_monitor.sql`,
+rồi `legacy/v1/db/jobs/job_monitor_dtm_daily.sql`. Kiểm tra `user_errors` phải 0 dòng.
 
-1. `db/migrations/V001` → `V005` (chỉ lần đầu; đã deploy ngày 2026-10-21/22)
-2. `db/packages/pkg_dtm_monitor.sql`
-3. Kiểm tra: `SELECT * FROM user_errors WHERE name = 'PKG_DTM_MONITOR';` phải 0 dòng
-4. Chạy thử: `BEGIN bi_dtm.pkg_dtm_monitor.run_daily(p_triggered_by => 'MANUAL'); END;`
-
-Quyền dictionary phải cấp **trực tiếp** cho `BI_DTM` (package definer rights không dùng quyền nhận qua role),
-xem phần 0 của `V001`.
+Quyền dictionary phải cấp **trực tiếp** cho `BI_DTM` (package definer rights không dùng quyền nhận qua role).
 
 ## Quy tắc bắt buộc
 
@@ -67,7 +70,7 @@ python3 tools/check_ascii.py                        # chạy trước mỗi comm
 ```
 
 Comment (`--`, `/* */`) được phép có tiếng Việt. `COMMENT ON` không nhận hàm, phải ghi qua
-`EXECUTE IMMEDIATE` (xem `V003`). Tên hiển thị trên OAS gõ trực tiếp trong trình duyệt thì không bị lỗi.
+`EXECUTE IMMEDIATE` (xem `legacy/v1/db/migrations/V003`). Tên hiển thị trên OAS gõ trực tiếp trong trình duyệt thì không bị lỗi.
 
 **2. OAS chỉ đọc qua view**, không đọc thẳng bảng `MON_*`. Quyền đọc qua role `BI_DTM_MON_READ`.
 
@@ -77,5 +80,5 @@ không bị hiểu nhầm là hệ thống tốt lên hay xấu đi.
 ## Dashboard OAS
 
 7 trang: 0. Hướng dẫn · 1. Tổng quan · 2. Ma trận · 3. Chi tiết vi phạm · 4. Xu hướng · 5. Dung lượng · 6. Nhật ký chạy.
-Mọi analysis dùng **Direct Database Request**; SQL và cách định dạng view nằm trong `oas/analyses/`.
+Mọi analysis dùng **Direct Database Request**; SQL và cách định dạng view của bản đang chạy nằm trong `legacy/v1/oas/analyses/`.
 Một số giới hạn của OAS đã gặp và cách xử lý được ghi ngay trong comment đầu mỗi file.

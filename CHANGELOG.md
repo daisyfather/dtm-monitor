@@ -5,6 +5,10 @@ Mỗi mục ghi rõ thay đổi đó làm số liệu trên dashboard tăng / gi
 
 ## [Chưa phát hành]
 
+### Repo
+- Chuyển bản đang chạy (v1.2) vào `legacy/v1/` kèm README ngữ cảnh, script job scheduler, script chẩn đoán tiếng Việt.
+- Thêm `docs/decisions.md` (nhật ký quyết định D01–D14).
+
 ### Đã phát hiện, sẽ sửa
 - `CROSS_MART_DEP`: zone `ADMIN` (BI_DTM) đang bị tính là vi phạm khi mart gọi package của BI_DTM.
 - `DDL_CHANGE_1D`: khoảng thời gian là `g_date - 1` đến `g_date + 1` (~33 giờ), đếm trùng giữa 2 lần chạy liên tiếp.
@@ -19,6 +23,7 @@ Chi tiết và kế hoạch: `docs/metrics-catalog.md`.
 
 ## [1.2] - 2026-10-22
 ### Thay đổi
+- Job `BI_DTM.JOB_MONITOR_DTM_DAILY` (DBMS_SCHEDULER) chạy 09:00 / 12:30 / 17:30, `triggered_by = SCHEDULER`.
 - Package 1.2: `save_schema_counts` nhận tham số `p_zone`. `INTERNAL_OBJ_GRANTED` và `CROSS_MART_DEP`
   chỉ ghi kết quả cho schema zone `MART`; schema khác hiển thị trống thay vì `0 / OK`.
 - `V005`: thêm 7 schema (`BI_DTM`, `COMMON_DTM`, `DG_DTM`, `ML_DTM`, `TREAS_DTM`, `WSP_DTM`, `XLN_DTM`)
