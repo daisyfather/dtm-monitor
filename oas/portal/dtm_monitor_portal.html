@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datamart Monitor</title>
+
+<!--
+  ===================================================================
+  CẤU HÌNH - CHỈ SỬA 2 CHỖ
+
+  1. <base href> ngay bên dưới: đổi thành địa chỉ OAS của bạn,
+     giữ nguyên "/analytics/" ở cuối.
+
+  2. Đường dẫn catalog trong từng link (phần sau "Path="):
+     %2Fshared%2FBI_DTM_MONITOR%2FDS01_MON_ANALYSIS
+     = /shared/BI_DTM_MONITOR/DS01_MON_ANALYSIS
+     Lấy đúng đường dẫn: OAS > Catalog > chuột phải analysis > Properties.
+     Dấu "/" viết thành %2F, dấu cách viết thành %20.
+
+  saw.dll?Go&Path=...   : chỉ hiện kết quả analysis, không có header OAS
+  saw.dll?PortalGo&path=: hiện kèm header OAS (dùng cho link mở tab mới)
+  ===================================================================
+-->
+<base href="https://oas.example.local/analytics/">
+
+<style>
+  :root {
+    --brand: #da1f2c;
+    --side-bg: #1f2430;
+    --side-bg-hover: #2b3242;
+    --side-text: #c9ced8;
+    --side-muted: #8a92a3;
+    --side-active: #ffffff;
+    --line: #343b4d;
+    --page-bg: #f4f5f7;
+    --w-open: 260px;
+    --w-closed: 60px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    background: var(--page-bg);
+    overflow: hidden;
+  }
+
+  /* Ô checkbox ẩn dùng để thu gọn / mở sidebar, không cần JavaScript */
+  #toggle { display: none; }
+
+  .app {
+    display: grid;
+    grid-template-columns: var(--w-open) 1fr;
+    height: 100vh;
+    transition: grid-template-columns .2s ease;
+  }
+  #toggle:checked + .app { grid-template-columns: var(--w-closed) 1fr; }
+
+  /* ---------------- SIDEBAR ---------------- */
+  .side {
+    background: var(--side-bg);
+    color: var(--side-text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .brand {
+    height: 56px;
+    background: var(--brand);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+  .brand label {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .brand label:hover { background: rgba(255,255,255,.15); }
+  .brand .title { font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+  .brand .title small { display: block; font-weight: 400; font-size: 11px; opacity: .85; }
+
+  nav { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
+
+  .group {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--side-muted);
+    padding: 16px 18px 6px;
+    white-space: nowrap;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    margin: 2px 8px;
+    border-radius: 6px;
+  }
+  .item:hover { background: var(--side-bg-hover); }
+
+  .item a.go {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 10px;
+    color: var(--side-text);
+    text-decoration: none;
+    min-width: 0;
+  }
+  .item a.go:hover, .item a.go:focus { color: var(--side-active); outline: none; }
+
+  .num {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    background: var(--line);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .txt { min-width: 0; }
+  .txt b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txt span { display: block; font-size: 11.5px; color: var(--side-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .item a.ext {
+    padding: 6px 10px;
+    color: var(--side-muted);
+    text-decoration: none;
+    font-size: 13px;
+    opacity: 0;
+  }
+  .item:hover a.ext { opacity: 1; }
+  .item a.ext:hover { color: #fff; }
+
+  /* Mục đang chọn (đánh dấu bằng đoạn script nhỏ cuối trang) */
+  .item.active { background: var(--side-bg-hover); }
+  .item.active a.go { color: var(--side-active); }
+  .item.active .num { background: var(--brand); color: #fff; }
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding: 12px 18px;
+    font-size: 11.5px;
+    color: var(--side-muted);
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  /* Sidebar thu gọn: chỉ còn số thứ tự */
+  #toggle:checked + .app .brand .title,
+  #toggle:checked + .app .group,
+  #toggle:checked + .app .txt,
+  #toggle:checked + .app .ext,
+  #toggle:checked + .app .foot { display: none; }
+  #toggle:checked + .app .item a.go { justify-content: center; padding: 9px 0; }
+
+  /* ---------------- NỘI DUNG ---------------- */
+  main { position: relative; min-width: 0; }
+  iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+
+<input type="checkbox" id="toggle">
+<div class="app">
+
+  <aside class="side">
+    <div class="brand">
+      <label for="toggle" title="Thu gọn / mở menu">&#9776;</label>
+      <div class="title">DATAMART MONITOR<small>Giám sát hằng ngày các schema DTM</small></div>
+    </div>
+
+    <nav>
+      <div class="group">Bắt đầu</div>
+      <div class="item active">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS00_MON_GLOSSARY_ANALYSIS">
+          <span class="num">0</span>
+          <span class="txt"><b>Hướng dẫn</b><span>Cách đọc dashboard, thuật ngữ</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS00_MON_GLOSSARY_ANALYSIS">&#8599;</a>
+      </div>
+
+      <div class="group">Hôm nay</div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS01_MON_ANALYSIS">
+          <span class="num">1</span>
+          <span class="txt"><b>Tổng quan</b><span>Tiêu chí nào đang có vấn đề</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS01_MON_ANALYSIS">&#8599;</a>
+      </div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS02_MON_MATRIX_ANALYSIS">
+          <span class="num">2</span>
+          <span class="txt"><b>Ma trận</b><span>Tiêu chí × schema</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS02_MON_MATRIX_ANALYSIS">&#8599;</a>
+      </div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS05_MON_DETAIL_ANALYSIS">
+          <span class="num">3</span>
+          <span class="txt"><b>Chi tiết vi phạm</b><span>Object cụ thể, hướng xử lý</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS05_MON_DETAIL_ANALYSIS">&#8599;</a>
+      </div>
+
+      <div class="group">Lịch sử</div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS03_MON_TREND_ANALYSIS">
+          <span class="num">4</span>
+          <span class="txt"><b>Xu hướng</b><span>90 ngày gần nhất</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS03_MON_TREND_ANALYSIS">&#8599;</a>
+      </div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS04_MON_SIZE_ANALYSIS">
+          <span class="num">5</span>
+          <span class="txt"><b>Dung lượng</b><span>Theo schema, mức tăng</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS04_MON_SIZE_ANALYSIS">&#8599;</a>
+      </div>
+
+      <div class="group">Vận hành</div>
+      <div class="item">
+        <a class="go" target="view" href="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS06_MON_RUN_ANALYSIS">
+          <span class="num">6</span>
+          <span class="txt"><b>Nhật ký chạy</b><span>Job giám sát có chạy đủ không</span></span>
+        </a>
+        <a class="ext" target="_blank" title="Mở tab mới" href="saw.dll?PortalGo&amp;path=%2Fshared%2FBI_DTM_MONITOR%2FDS06_MON_RUN_ANALYSIS">&#8599;</a>
+      </div>
+    </nav>
+
+    <div class="foot">Nguồn: BI_DTM.VW_OAS_MON_*<br>Cập nhật 1 lần mỗi ngày</div>
+  </aside>
+
+  <main>
+    <iframe name="view" title="Nội dung báo cáo"
+            src="saw.dll?Go&amp;Path=%2Fshared%2FBI_DTM_MONITOR%2FDS00_MON_GLOSSARY_ANALYSIS"></iframe>
+  </main>
+
+</div>
+
+<!-- Tùy chọn: chỉ để tô sáng mục đang xem. Xóa đi thì trang vẫn chạy bình thường. -->
+<script>
+  document.querySelectorAll('.item a.go').forEach(function (a) {
+    a.addEventListener('click', function () {
+      document.querySelectorAll('.item').forEach(function (i) { i.classList.remove('active'); });
+      a.parentNode.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
